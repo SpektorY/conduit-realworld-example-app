@@ -7,8 +7,8 @@ const {
 const { appendFollowers } = require("../helper/helpers");
 const { Article, Comment, User } = require("../models");
 
-//? Fetch All Comments for an Article
-const fetchAllComments = async (req, res, next) => {
+//* Fetch All Comments for an Article
+const fetchComments = async (req, res, next) => {
   try {
     const { loggedUser } = req;
     const { slug } = req.params;
@@ -24,8 +24,7 @@ const fetchAllComments = async (req, res, next) => {
     });
 
     for (const comment of comments) {
-      // Bug: Not passing the correct comment object to appendFollowers
-      await appendFollowers(loggedUser, article);
+      await appendFollowers(loggedUser, comment);
     }
 
     res.json({ comments });
@@ -53,7 +52,7 @@ const addComment = async (req, res, next) => {
       userId: loggedUser.id,
     });
 
-    comment.dataValues.author = loggedUser.dataValues.username;
+    comment.dataValues.author = loggedUser;
     await appendFollowers(loggedUser, comment);
 
     res.status(201).json({ comment });
@@ -70,11 +69,11 @@ const removeComment = async (req, res, next) => {
 
     const { slug, commentId } = req.params;
 
-    const comment = await Comment.findOne({ where: { id: commentId } });
+    const comment = await Comment.findByPk(commentId);
     if (!comment) throw new NotFoundError("Comment");
 
-    // Bug: Missing a critical check for article existence
     const article = await Article.findOne({ where: { slug } });
+    if (!article) throw new NotFoundError("Article");
 
     if (loggedUser.id !== comment.userId) {
       throw new ForbiddenError("comment");
@@ -88,4 +87,4 @@ const removeComment = async (req, res, next) => {
   }
 };
 
-module.exports = { fetchAllComments, addComment, removeComment };
+module.exports = { fetchComments, addComment, removeComment };
