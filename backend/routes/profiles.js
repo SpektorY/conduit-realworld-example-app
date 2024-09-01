@@ -1,15 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const verifyToken = require("../middleware/authentication");
-const { getProfile, followToggler } = require("../controllers/profiles");
+const { fetchProfile, toggleFollow } = require("../controllers/profileController");
 
 //? Profile
-router.get("/:username", verifyToken, getProfile);
+router.get("/:username", verifyToken, fetchProfile);
 
 //* Follow Profile
-router.post("/:username/follow", verifyToken, followToggler);
+router.post("/:username/follow", verifyToken, toggleFollow);
 
 //* Unfollow Profile
-router.delete("/:username/follow", verifyToken, followToggler);
+router.delete("/:username/follow", verifyToken, toggleFollow);
 
 module.exports = router;
