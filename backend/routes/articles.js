@@ -2,33 +2,39 @@ const express = require("express");
 const router = express.Router();
 const verifyToken = require("../middleware/authentication");
 const {
-  allArticles,
+  fetchAllArticles,
   createArticle,
-  singleArticle,
+  fetchSingleArticle,
   updateArticle,
   deleteArticle,
-  articlesFeed,
-} = require("../controllers/articles");
+  fetchArticlesFeed,
+} = require("../controllers/articleController");
 
 //? All Articles - by Author/by Tag/Favorited by user
-router.get("/", verifyToken, allArticles);
+router.get("/", verifyToken, fetchAllArticles);
+
 //* Create Article
 router.post("/", verifyToken, createArticle);
+
 //* Feed
-router.get("/feed", verifyToken, articlesFeed);
+router.get("/feed", verifyToken, fetchArticlesFeed);
+
 // Single Article by slug
-router.get("/:slug", verifyToken, singleArticle);
+router.get("/:slug", verifyToken, fetchSingleArticle);
+
 //* Update Article
 router.put("/:slug", verifyToken, updateArticle);
+
 //* Delete Article
 router.delete("/:slug", verifyToken, deleteArticle);
 
-const favoritesRoutes = require("./articles/favorites");
-const commentsRoutes = require("./articles/comments");
+const favoritesRoutes = require("./articles/favoritesRoutes");
+const commentsRoutes = require("./articles/commentsRoutes");
 
 //> Favorites routes
-router.use("/", favoritesRoutes);
+router.use("/:slug", favoritesRoutes); // Scoped to article slug
+
 //> Comments routes
-router.use("/", commentsRoutes);
+router.use("/:slug", commentsRoutes); // Scoped to article slug
 
 module.exports = router;
