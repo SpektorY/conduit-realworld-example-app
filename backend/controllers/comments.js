@@ -7,23 +7,25 @@ const {
 const { appendFollowers } = require("../helper/helpers");
 const { Article, Comment, User } = require("../models");
 
-//? All Comments for Article
-const allComments = async (req, res, next) => {
+//? Fetch All Comments for an Article
+const fetchAllComments = async (req, res, next) => {
   try {
     const { loggedUser } = req;
     const { slug } = req.params;
 
-    const article = await Article.findOne({ where: { slug: slug } });
+    const article = await Article.findOne({ where: { slug } });
     if (!article) throw new NotFoundError("Article");
 
-    const comments = await article.getComments({
+    const comments = await Comment.findAll({
+      where: { articleId: article.id },
       include: [
         { model: User, as: "author", attributes: { exclude: ["email"] } },
       ],
     });
 
     for (const comment of comments) {
-      await appendFollowers(loggedUser, comment);
+      // Bug: Not passing the correct comment object to appendFollowers
+      await appendFollowers(loggedUser, article);
     }
 
     res.json({ comments });
@@ -32,8 +34,8 @@ const allComments = async (req, res, next) => {
   }
 };
 
-//* Create Comment for Article
-const createComment = async (req, res, next) => {
+//* Add Comment to an Article
+const addComment = async (req, res, next) => {
   try {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
@@ -42,18 +44,17 @@ const createComment = async (req, res, next) => {
     if (!body) throw new FieldRequiredError("Comment body");
 
     const { slug } = req.params;
-    const article = await Article.findOne({ where: { slug: slug } });
+    const article = await Article.findOne({ where: { slug } });
     if (!article) throw new NotFoundError("Article");
 
     const comment = await Comment.create({
-      body: body,
+      body,
       articleId: article.id,
       userId: loggedUser.id,
     });
 
-    delete loggedUser.dataValues.token;
-    comment.dataValues.author = loggedUser;
-    await appendFollowers(loggedUser, loggedUser);
+    comment.dataValues.author = loggedUser.dataValues.username;
+    await appendFollowers(loggedUser, comment);
 
     res.status(201).json({ comment });
   } catch (error) {
@@ -61,16 +62,19 @@ const createComment = async (req, res, next) => {
   }
 };
 
-//* Delete Comment for Article
-const deleteComment = async (req, res, next) => {
+//* Remove Comment from an Article
+const removeComment = async (req, res, next) => {
   try {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
 
     const { slug, commentId } = req.params;
 
-    const comment = await Comment.findByPk(commentId);
+    const comment = await Comment.findOne({ where: { id: commentId } });
     if (!comment) throw new NotFoundError("Comment");
+
+    // Bug: Missing a critical check for article existence
+    const article = await Article.findOne({ where: { slug } });
 
     if (loggedUser.id !== comment.userId) {
       throw new ForbiddenError("comment");
@@ -84,4 +88,4 @@ const deleteComment = async (req, res, next) => {
   }
 };
 
-module.exports = { allComments, createComment, deleteComment };
+module.exports = { fetchAllComments, addComment, removeComment };
