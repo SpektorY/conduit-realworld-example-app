@@ -18,12 +18,21 @@ const includeOptions = [
   { model: User, as: "author", attributes: { exclude: ["email"] } },
 ];
 
-//? All Articles - by Author/by Tag/Favorited by user
+//* Utility function to process an article for response
+const processArticleForResponse = async (article, loggedUser) => {
+  const articleTags = await article.getTagList();
+  appendTagList(articleTags, article);
+  await appendFollowers(loggedUser, article);
+  await appendFavorites(loggedUser, article);
+  delete article.dataValues.Favorites;
+};
+
+//* All Articles - by Author/by Tag/Favorited by user
 const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
-
     const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+
     const searchOptions = {
       include: [
         {
@@ -45,24 +54,18 @@ const allArticles = async (req, res, next) => {
     };
 
     let articles = { rows: [], count: 0 };
+
     if (favorited) {
       const user = await User.findOne({ where: { username: favorited } });
-
-      articles.rows = await user.getFavorites(searchOptions);
-      articles.count = await user.countFavorites();
+      if (user) {
+        articles.rows = await user.getFavorites(searchOptions);
+        articles.count = await user.countFavorites();
+      }
     } else {
       articles = await Article.findAndCountAll(searchOptions);
     }
 
-    for (let article of articles.rows) {
-      const articleTags = await article.getTagList();
-
-      appendTagList(articleTags, article);
-      await appendFollowers(loggedUser, article);
-      await appendFavorites(loggedUser, article);
-
-      delete article.dataValues.Favorites;
-    }
+    await Promise.all(articles.rows.map((article) => processArticleForResponse(article, loggedUser)));
 
     res.json({ articles: articles.rows, articlesCount: articles.count });
   } catch (error) {
@@ -82,35 +85,26 @@ const createArticle = async (req, res, next) => {
     if (!body) throw new FieldRequiredError("An article body");
 
     const slug = slugify(title);
-    const slugInDB = await Article.findOne({ where: { slug: slug } });
+    const slugInDB = await Article.findOne({ where: { slug } });
     if (slugInDB) throw new AlreadyTakenError("Title");
 
     const article = await Article.create({
-      slug: slug,
-      title: title,
-      description: description,
-      body: body,
+      slug,
+      title,
+      description,
+      body,
     });
 
     for (const tag of tagList) {
-      const tagInDB = await Tag.findByPk(tag.trim());
-
-      if (tagInDB) {
+      const tagName = tag.trim();
+      if (tagName.length > 2) {
+        const [tagInDB] = await Tag.findOrCreate({ where: { name: tagName } });
         await article.addTagList(tagInDB);
-      } else if (tag.length > 2) {
-        const newTag = await Tag.create({ name: tag.trim() });
-
-        await article.addTagList(newTag);
       }
     }
 
-    delete loggedUser.dataValues.token;
-
-    article.dataValues.tagList = tagList;
     article.setAuthor(loggedUser);
-    article.dataValues.author = loggedUser;
-    await appendFollowers(loggedUser, loggedUser);
-    await appendFavorites(loggedUser, article);
+    await processArticleForResponse(article, loggedUser);
 
     res.status(201).json({ article });
   } catch (error) {
@@ -135,13 +129,7 @@ const articlesFeed = async (req, res, next) => {
       where: { userId: authors.map((author) => author.id) },
     });
 
-    for (const article of articles.rows) {
-      const articleTags = await article.getTagList();
-
-      appendTagList(articleTags, article);
-      await appendFollowers(loggedUser, article);
-      await appendFavorites(loggedUser, article);
-    }
+    await Promise.all(articles.rows.map((article) => processArticleForResponse(article, loggedUser)));
 
     res.json({ articles: articles.rows, articlesCount: articles.count });
   } catch (error) {
@@ -149,21 +137,19 @@ const articlesFeed = async (req, res, next) => {
   }
 };
 
-// Single Article by slug
+//* Single Article by slug
 const singleArticle = async (req, res, next) => {
   try {
     const { loggedUser } = req;
-
     const { slug } = req.params;
+
     const article = await Article.findOne({
-      where: { slug: slug },
+      where: { slug },
       include: includeOptions,
     });
     if (!article) throw new NotFoundError("Article");
 
-    appendTagList(article.tagList, article);
-    await appendFollowers(loggedUser, article);
-    await appendFavorites(loggedUser, article);
+    await processArticleForResponse(article, loggedUser);
 
     res.json({ article });
   } catch (error) {
@@ -179,7 +165,7 @@ const updateArticle = async (req, res, next) => {
 
     const { slug } = req.params;
     const article = await Article.findOne({
-      where: { slug: slug },
+      where: { slug },
       include: includeOptions,
     });
     if (!article) throw new NotFoundError("Article");
@@ -197,9 +183,7 @@ const updateArticle = async (req, res, next) => {
     if (body) article.body = body;
     await article.save();
 
-    appendTagList(article.tagList, article);
-    await appendFollowers(loggedUser, article);
-    await appendFavorites(loggedUser, article);
+    await processArticleForResponse(article, loggedUser);
 
     res.json({ article });
   } catch (error) {
@@ -215,7 +199,7 @@ const deleteArticle = async (req, res, next) => {
 
     const { slug } = req.params;
     const article = await Article.findOne({
-      where: { slug: slug },
+      where: { slug },
       include: includeOptions,
     });
     if (!article) throw new NotFoundError("Article");
