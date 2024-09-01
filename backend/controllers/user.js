@@ -1,48 +1,57 @@
-const { UnauthorizedError } = require("../helper/customErrors");
-const { bcryptHash } = require("../helper/bcrypt");
+const { User } = require("../models");
+const { jwtSign } = require("../helper/jwt");
+const { bcryptHash, bcryptCompare } = require("../helper/bcrypt");
+const {
+  ValidationError,
+  FieldRequiredError,
+  AlreadyTakenError,
+  NotFoundError,
+} = require("../helper/customErrors");
 
-//* Current User
-const currentUser = async (req, res, next) => {
+//* Register User
+const registerUser = async (req, res, next) => {
   try {
-    const { loggedUser } = req;
-    if (!loggedUser) throw new UnauthorizedError();
+    const { username, email, bio, image, password } = req.body.user;
+    if (!username) throw new FieldRequiredError("A username");
+    if (!email) throw new FieldRequiredError("An email");
+    if (!password) throw new FieldRequiredError("A password");
 
-    loggedUser.dataValues.email = req.headers.email;
-    delete req.headers.email;
+    const userExists = await User.findOne({ where: { email } });
+    if (userExists) throw new AlreadyTakenError("Email", "try logging in");
 
-    res.json({ user: loggedUser });
-  } catch (error) {
-    next(error);
-  }
-};
-
-//* Update User
-const updateUser = async (req, res, next) => {
-  try {
-    const { loggedUser } = req;
-    if (!loggedUser) throw new UnauthorizedError();
-
-    const {
-      user: { password },
-      user,
-    } = req.body;
-
-    Object.entries(user).forEach((entry) => {
-      const [key, value] = entry;
-
-      if (value !== undefined && key !== "password") loggedUser[key] = value;
+    const newUser = await User.create({
+      email,
+      username,
+      bio,
+      image,
+      password: await bcryptHash(password),
     });
 
-    if (password !== undefined || password !== "") {
-      loggedUser.password = await bcryptHash(password);
-    }
+    newUser.dataValues.token = await jwtSign(newUser);
 
-    await loggedUser.save();
-
-    res.json({ user: loggedUser });
+    res.status(201).json({ user: newUser });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { currentUser, updateUser };
+//* Login User
+const loginUser = async (req, res, next) => {
+  try {
+    const { email, password } = req.body.user;
+
+    const existentUser = await User.findOne({ where: { email } });
+    if (!existentUser) throw new NotFoundError("Email", "sign in first");
+
+    const isPasswordCorrect = await bcryptCompare(password, existentUser.password);
+    if (!isPasswordCorrect) throw new ValidationError("Wrong email/password combination");
+
+    existentUser.dataValues.token = await jwtSign(existentUser);
+
+    res.json({ user: existentUser });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { registerUser, loginUser };
