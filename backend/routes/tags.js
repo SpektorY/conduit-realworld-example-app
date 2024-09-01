@@ -7,7 +7,6 @@ const { appendTagList } = require("../helper/helpers");
 router.get("/", async (req, res, next) => {
   try {
     const tagList = await Tag.findAll();
-
     const tags = appendTagList(tagList);
 
     res.json({ tags });
