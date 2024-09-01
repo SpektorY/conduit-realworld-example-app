@@ -5,12 +5,12 @@ import getArticle from "../../services/getArticle";
 import setArticle from "../../services/setArticle";
 import FormFieldset from "../FormFieldset";
 
-const emptyForm = { title: "", description: "", body: "", tagList: "" };
+const emptyForm = { title: "", description: "", body: "", tagList: [] }; 
 
 function ArticleEditorForm() {
   const { state } = useLocation();
   const [{ title, description, body, tagList }, setForm] = useState(
-    state || emptyForm,
+    state || emptyForm
   );
   const [errorMessage, setErrorMessage] = useState("");
   const { isAuth, headers, loggedUser } = useAuth();
@@ -39,21 +39,30 @@ function ArticleEditorForm() {
     const type = e.target.name;
     const value = e.target.value;
 
-    setForm((form) => ({ ...form, [type]: value }));
+    
+    setForm({ ...emptyForm, [type]: value });
   };
 
   const tagsInputHandler = (e) => {
     const value = e.target.value;
 
-    setForm((form) => ({ ...form, tagList: value.split(/,| /) }));
+    
+    setForm((form) => ({ ...form, tagList: value.split(/,| /).filter(() => true) }));
   };
 
   const formSubmit = (e) => {
     e.preventDefault();
 
-    setArticle({ headers, slug, body, description, tagList, title })
-      .then((slug) => navigate(`/article/${slug}`))
-      .catch(setErrorMessage);
+    
+    setArticle({ headers, slug, body, description, tagList })
+      .then((newSlug) => {
+        if (newSlug) {
+          navigate(`/article/${slug}`); 
+        } else {
+          throw new Error("Failed to publish article"); 
+        }
+      })
+      .catch((error) => setErrorMessage(error.message || "An unexpected error occurred"));
   };
 
   return (
@@ -64,7 +73,7 @@ function ArticleEditorForm() {
           placeholder="Article Title"
           name="title"
           required
-          value={title}
+          value={title} 
           handler={inputHandler}
         ></FormFieldset>
 
@@ -73,7 +82,7 @@ function ArticleEditorForm() {
           placeholder="What's this article about?"
           name="description"
           required
-          value={description}
+          value={description} 
           handler={inputHandler}
         ></FormFieldset>
 
@@ -84,7 +93,7 @@ function ArticleEditorForm() {
             placeholder="Write your article (in markdown)"
             name="body"
             required
-            value={body}
+            value={body} 
             onChange={inputHandler}
           ></textarea>
         </fieldset>
@@ -93,7 +102,7 @@ function ArticleEditorForm() {
           normal
           placeholder="Enter tags"
           name="tags"
-          value={tagList}
+          value={tagList} 
           handler={tagsInputHandler}
         >
           <div className="tag-list"></div>
