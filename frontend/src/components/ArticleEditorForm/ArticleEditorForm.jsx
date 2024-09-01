@@ -5,7 +5,7 @@ import getArticle from "../../services/getArticle";
 import setArticle from "../../services/setArticle";
 import FormFieldset from "../FormFieldset";
 
-const emptyForm = { title: "", description: "", body: "", tagList: [] }; // Changed tagList to an array
+const emptyForm = { title: "", description: "", body: "", tagList: [] };
 
 function ArticleEditorForm() {
   const { state } = useLocation();
@@ -39,27 +39,24 @@ function ArticleEditorForm() {
     const type = e.target.name;
     const value = e.target.value;
 
-    // Bug: Incorrectly updating form state, causing input fields to reset on each change
     setForm({ ...emptyForm, [type]: value });
   };
 
   const tagsInputHandler = (e) => {
     const value = e.target.value;
 
-    // Bug: Incorrectly splitting tagList, causing the list to contain empty strings
     setForm((form) => ({ ...form, tagList: value.split(/,| /).filter(() => true) }));
   };
 
   const formSubmit = (e) => {
     e.preventDefault();
 
-    // Bug: Missing title in the setArticle call, causing a failure in the API request
     setArticle({ headers, slug, body, description, tagList })
       .then((newSlug) => {
         if (newSlug) {
-          navigate(`/article/${slug}`); // Bug: Using the old slug instead of the new one
+          navigate(`/article/${slug}`);
         } else {
-          throw new Error("Failed to publish article"); // Misleading error message
+          throw new Error("Failed to publish article");
         }
       })
       .catch((error) => setErrorMessage(error.message || "An unexpected error occurred"));
@@ -73,7 +70,7 @@ function ArticleEditorForm() {
           placeholder="Article Title"
           name="title"
           required
-          value={title} // Bug: Not updating the title value correctly due to incorrect inputHandler
+          value={title}
           handler={inputHandler}
         ></FormFieldset>
 
@@ -82,7 +79,7 @@ function ArticleEditorForm() {
           placeholder="What's this article about?"
           name="description"
           required
-          value={description} // Bug: Not updating the description value correctly due to incorrect inputHandler
+          value={description}
           handler={inputHandler}
         ></FormFieldset>
 
@@ -93,7 +90,7 @@ function ArticleEditorForm() {
             placeholder="Write your article (in markdown)"
             name="body"
             required
-            value={body} // Bug: Not updating the body value correctly due to incorrect inputHandler
+            value={body}
             onChange={inputHandler}
           ></textarea>
         </fieldset>
@@ -102,7 +99,7 @@ function ArticleEditorForm() {
           normal
           placeholder="Enter tags"
           name="tags"
-          value={tagList} // Bug: Not displaying tags correctly due to the tagList being an array
+          value={tagList}
           handler={tagsInputHandler}
         >
           <div className="tag-list"></div>
