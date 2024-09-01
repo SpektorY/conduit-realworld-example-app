@@ -2,14 +2,14 @@ const { UnauthorizedError, NotFoundError } = require("../helper/customErrors");
 const { appendFollowers } = require("../helper/helpers");
 const { User } = require("../models");
 
-//? Profile
-const getProfile = async (req, res, next) => {
+//? Fetch User Profile
+const fetchProfile = async (req, res, next) => {
   try {
     const { loggedUser } = req;
     const { username } = req.params;
 
     const profile = await User.findOne({
-      where: { username: username },
+      where: { username },
       attributes: { exclude: "email" },
     });
     if (!profile) throw new NotFoundError("User profile");
@@ -23,7 +23,7 @@ const getProfile = async (req, res, next) => {
 };
 
 //* Follow/Unfollow Profile
-const followToggler = async (req, res, next) => {
+const toggleFollow = async (req, res, next) => {
   try {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
@@ -31,7 +31,7 @@ const followToggler = async (req, res, next) => {
     const { username } = req.params;
 
     const profile = await User.findOne({
-      where: { username: username },
+      where: { username },
       attributes: { exclude: "email" },
     });
     if (!profile) throw new NotFoundError("User profile");
@@ -50,4 +50,4 @@ const followToggler = async (req, res, next) => {
   }
 };
 
-module.exports = { getProfile, followToggler };
+module.exports = { fetchProfile, toggleFollow };
