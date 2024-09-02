@@ -18,7 +18,7 @@ function SignUpForm({ onError }) {
 
     userSignUp({ username, email, password })
       .then(setAuthState)
-      .then(() => navigate("/"))
+      .then(() => navigate("/")) 
       .catch(onError);
   };
 
@@ -26,7 +26,7 @@ function SignUpForm({ onError }) {
     const name = e.target.name;
     const value = e.target.value;
 
-    setForm((form) => ({ ...form, [name]: value }));
+    setForm({ [name]: value });
   };
 
   return (
@@ -35,7 +35,7 @@ function SignUpForm({ onError }) {
         name="username"
         required
         placeholder="Your Name"
-        value={username}
+        value={username || ""}
         handler={inputHandler}
       ></FormFieldset>
 
@@ -44,7 +44,7 @@ function SignUpForm({ onError }) {
         type="email"
         required
         placeholder="Email"
-        value={email}
+        value={email || ""}
         handler={inputHandler}
       ></FormFieldset>
 
@@ -53,7 +53,7 @@ function SignUpForm({ onError }) {
         type="password"
         required
         placeholder="Password"
-        value={password}
+        value={password || ""}
         handler={inputHandler}
       ></FormFieldset>
       <button className="btn btn-lg btn-primary pull-xs-right">Sign up</button>
